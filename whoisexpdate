@@ -1,0 +1,75 @@
+#!/bin/bash 
+#Author: Daniel Ferreira de Lima
+#Last Release: 0.1 Qua Jun 29 16:26:23 BRT 2016
+#Changelog:  
+#   0.1 Qua Jun 29 16:26:23 BRT 2016 - First release 
+#Email: daniel.ferreira@adtsys.com.br 
+#Description: Get expire date from a domainname converting
+#         crazy unstandardized expiring date formats to YYYYMMDD
+#      
+#VIM<3 
+
+PROGNAME=${0##*/}
+
+monthtonum() { 
+    month=${*:-$(</dev/stdin)} 
+    month=${month,,} 
+    month=${month/jan/01}
+    month=${month/feb/02}
+    month=${month/mar/03}
+    month=${month/may/04}
+    month=${month/jun/06}
+    month=${month/jul/07}
+    month=${month/sep/09}
+    month=${month/oct/10}
+    month=${month/nov/11}
+    month=${month/dec/12} 
+    echo $month
+}
+
+extractexpdate() {
+    for domain in $*
+    do 
+        echo -ne $domain,
+        expireline=`whois $domain|grep -i exp|grep 20|grep ":"|grep -iv notice|cut -d: -f2-|monthtonum`
+        
+        term=${domain##*.} 
+
+        expire=29991231
+        if [ $term == "co" ]; then #validated
+           expire=$(echo $expireline | sed 's/.*\([0-9]\{2\}\) \([0-9]\{2\}\) ..:..:.. ... \([0-9]\{4\}\)/\3\2\1/' )
+        elif [ $term == "cc" ]; then #validated
+           expire=$(echo $expireline | egrep -o [0-9]{4}-[0-9]{2}-[0-9]{2}|tr -d '-'|head -1)
+        elif [ $term == "com" ] || [ $term == "net" ]; then #validated com e net
+           expire=$(echo $expireline | egrep -o [0-9]{4}-[0-9]{2}-[0-9]{2}|tr -d '-' )
+        elif [ $term == "sg" ]; then #validated
+           expire=$(echo $expireline | egrep -o [0-9]{2}-[0-9]{2}-[0-9]{4}|awk -F- '{ print $3$2$1 }')
+        elif [ $term == "hk" ]; then #validated
+           expire=$(echo "$expireline" | cut -d: -f2 | awk -F- '{ print $3$2$1 }' |tr -d ' ' )
+        elif [ $term == "dog" ]; then #validated
+           expire=$(echo "$expireline" |egrep -o [0-9]{4}-[0-9]{2}-[0-9]{2}|tr -d '-')
+        elif [ $term == "agency" ]; then #validated
+           expire=$(echo "$expireline" |egrep -o [0-9]{4}-[0-9]{2}-[0-9]{2}|tr -d '-' )
+        elif [ $term == "plus" ]; then #validated
+           expire=$(echo "$expireline" |egrep -o [0-9]{4}-[0-9]{2}-[0-9]{2}|tr -d '-' )
+        elif [ $term == "im" ]; then #validated
+           expire=$(echo "$expireline" |cut -d ' ' -f1 | awk -F/ '{ print $3$2$1 }' )
+        elif [ $term == "mobi" ]; then #validated
+           expire=$(echo "$expireline" |cut -d ' ' -f1 | awk -F- '{ print $3$2$1 }' )
+        elif [ $term == "rs" ]; then #validated
+           expire=$(echo "$expireline" |cut -d ' ' -f1 | awk -F. '{ print $3$2$1 }' )
+        elif [ $term == "org" ]; then #validated
+           expire=$(echo "$expireline" |egrep -o [0-9]{4}-[0-9]{2}-[0-9]{2}|tr -d '-' )
+        else 
+           expire=$(echo "$expireline" )
+        fi 
+
+        if [[ $expire =~ ^[0-9]{8} ]] ;then
+            echo $expire
+        else
+            echo 0
+        fi
+        sleep 5
+    done 
+}
+
